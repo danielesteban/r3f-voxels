@@ -1,0 +1,48 @@
+:root {
+  font-size: 16px;
+}
+
+body {
+  margin: 0;
+  background: #000;
+  color: #eee;
+  font-family: monospace;
+  font-size: 0.75rem;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.125rem;
+  touch-action: none;
+  overflow: hidden;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -webkit-overflow-scrolling: auto;
+}
+
+:root, body, #root {
+  width: 100vw;
+  height: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  padding: 0.25rem 0.5rem;
+  font-family: inherit;
+  font-weight: inherit;
+  background: rgba(0, 0, 0, .5);
+  color: inherit;
+  border: 1px solid #000;
+  border-radius: 0.125rem;
+  cursor: pointer;
+}
+
+canvas, img {
+  image-rendering: pixelated;
+  vertical-align: middle;
+}

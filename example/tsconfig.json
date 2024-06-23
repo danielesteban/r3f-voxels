@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "paths": {
+      "r3f-voxels": ["../src"],
+    },
+    "strict": true,
+    "target": "esnext"
+  },
+  "exclude": ["dist", "node_modules"],
+  "include": ["src"]
+}
