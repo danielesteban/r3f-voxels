@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { Box3, Vector3 } from 'three';
+import { Box3, EventDispatcher, Vector3 } from 'three';
 import { Signal } from './Signal';
 
 export const chunkSize = 16;
@@ -62,9 +62,14 @@ export const createDataStore = (
     }
     return chunk;
   };
-  const loaded = new Signal<{ chunks: string[], origin?: Vector3 }>({ chunks: [] });
+  const events = new EventDispatcher<{
+    change: { position: Vector3; value: number };
+  }>();
+  const loaded = new Signal<{ chunks: string[]; origin?: Vector3 }>({ chunks: [] });
   return {
     loaded,
+    addEventListener: events.addEventListener.bind(events),
+    removeEventListener: events.removeEventListener.bind(events),
     getChunk,
     loadChunks: (origin: Vector3, bounds: Box3) => {
       const { chunks: current } = loaded.get();
@@ -93,6 +98,10 @@ export const createDataStore = (
       });
       loaded.set({ chunks: next, origin: origin.clone() });
     },
+    clearChunks: () => {
+      chunks.clear();
+      loaded.set({ chunks: [] });
+    },
     exportChunks: () => {
       const serialized: { [key: string]: Uint8Array } = {};
       chunks.forEach((chunk, key) => {
@@ -104,16 +113,18 @@ export const createDataStore = (
       return serialized;
     },
     importChunks: (serialized: { [key: string]: Uint8Array }) => {
-      chunks.clear();
       for (let [key, voxels] of Object.entries(serialized)) {
-        const chunk = new Signal({
+        const data: ChunkData = {
           modified: true,
           position: new Vector3().fromArray(key.split(':').map((p) => parseInt(p, 10))).multiplyScalar(chunkSize),
           voxels,
-        });
-        chunks.set(key, chunk);
+        };
+        if (chunks.has(key)) {
+          chunks.get(key)!.set(data);
+        } else {
+          chunks.set(key, new Signal(data));
+        }
       }
-      loaded.set({ chunks: [] });
     },
     getPhysics,
     getTexture,
@@ -132,6 +143,7 @@ export const createDataStore = (
       data.modified = true;
       data.voxels[voxel.z * chunkSize * chunkSize + voxel.y * chunkSize + voxel.x] = value;
       chunk.set({ ...data });
+      events.dispatchEvent({ type: 'change', position, value });
     },
   };
 };

@@ -41,6 +41,7 @@ const App = () =>  (
 
 ```ts
 type VoxelsApi = {
+  clearChunks: () => void;
   exportChunks: () => { [key: string]: Uint8Array };
   importChunks: (chunks: { [key: string]: Uint8Array }) => void;
   getMaterial: () => ChunkMaterial;

@@ -6,12 +6,16 @@ import { ChunkMaterial, ChunkDepthMaterial } from './chunk/ChunkMaterial';
 import { DataProvider } from './data/DataProvider';
 import { chunkSize, useData, VoxelFace } from './data/Data';
 
+type useDataType = ReturnType<typeof useData>;
+
 export type VoxelsApi = {
-  exportChunks: () => { [key: string]: Uint8Array };
-  importChunks: (chunks: { [key: string]: Uint8Array }) => void;
-  getMaterial: () => ChunkMaterial;
-  getVoxel: (position: Vector3) => number;
-  setVoxel: (position: Vector3, value: number) => void;
+  addEventListener: useDataType['addEventListener'],
+  removeEventListener: useDataType['removeEventListener'],
+  exportChunks: useDataType['exportChunks'],
+  importChunks: useDataType['importChunks'],
+  getMaterial: () => ChunkMaterial,
+  getVoxel: useDataType['getVoxel'],
+  setVoxel: useDataType['setVoxel'],
 };
 
 type ChunksProps = {
@@ -30,9 +34,12 @@ type VoxelsProps = {
   getTexture?: (voxel: number, face: VoxelFace, isTop: boolean) => number;
 } & ChunksProps;
 
+const VoxelsContext = React.createContext<VoxelsApi | null>(null);
+
 const aux = new Vector3();
 
 const Chunks = React.memo(React.forwardRef<VoxelsApi, ChunksProps>(({
+  children,
   atlas,
   normalAtlas,
   occlusionRoughnessMetalnessAtlas,
@@ -42,14 +49,7 @@ const Chunks = React.memo(React.forwardRef<VoxelsApi, ChunksProps>(({
   roughness = 1,
   ...props
 }, ref) => {
-  const { loaded, exportChunks, importChunks, loadChunks, getVoxel, setVoxel } = useData();
-  React.useImperativeHandle(ref, () => ({
-    exportChunks,
-    importChunks,
-    getMaterial: () => material.current,
-    getVoxel,
-    setVoxel,
-  }), []);
+  const { loaded, addEventListener, removeEventListener, exportChunks, importChunks, loadChunks, getVoxel, setVoxel } = useData();
   const material = React.useRef<ChunkMaterial>(null!);
   if (!material.current) {
     material.current = new ChunkMaterial();
@@ -82,27 +82,55 @@ const Chunks = React.memo(React.forwardRef<VoxelsApi, ChunksProps>(({
       loadChunks(aux, bounds);
     }
   });
+  const api = React.useMemo<VoxelsApi>(() => ({
+    addEventListener,
+    removeEventListener,
+    exportChunks,
+    importChunks,
+    getMaterial: () => material.current,
+    getVoxel,
+    setVoxel,
+  }), []);
+  React.useImperativeHandle(ref, () => api, [api]);
   return (
-    <group {...props}>
-      {chunks.map((key) => (
-        <Chunk
-          key={key}
-          chunkKey={key}
-          material={material.current}
-          depthMaterial={depthMaterial.current}
-        />
-      ))}
-    </group>
+    <>
+      <group {...props}>
+        {chunks.map((key) => (
+          <Chunk
+            key={key}
+            chunkKey={key}
+            material={material.current}
+            depthMaterial={depthMaterial.current}
+          />
+        ))}
+      </group>
+      <VoxelsContext.Provider value={api}>
+        {children}
+      </VoxelsContext.Provider>
+    </>
   );
 }));
 
 export const Voxels = React.memo(React.forwardRef<VoxelsApi, VoxelsProps>(({
+  children,
   generator,
   getPhysics,
   getTexture,
   ...props
 }, ref) => (
   <DataProvider generator={generator} getPhysics={getPhysics} getTexture={getTexture}>
-    <Chunks {...props} ref={ref} />
+    <Chunks {...props} ref={ref}>
+      {children}
+    </Chunks>
   </DataProvider>
 )));
+
+export const useVoxels = () => {
+  const api = React.useContext(VoxelsContext);
+  if (!api) {
+    throw new Error(
+      'r3f-voxels: useVoxels must be used within <Voxels />!',
+    );
+  }
+  return api;
+};
