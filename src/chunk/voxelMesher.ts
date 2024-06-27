@@ -1,7 +1,8 @@
 import { Box3, Vector3 } from 'three';
 import { ChunkData, chunkSize, VoxelFace } from '../data/Data';
 
-const auxBox = new Box3();
+const auxBoxA = new Box3();
+const auxBoxB = new Box3();
 const auxVectorA = new Vector3();
 const auxVectorB = new Vector3();
 const auxVectorC = new Vector3();
@@ -68,12 +69,20 @@ const getVoxel = (
 
 export const voxelMesher = (
   chunks: ChunkData[],
-  getTexture: (voxel: number, face: VoxelFace, isTop: boolean) => number
+  getTexture: (voxel: number, face: VoxelFace, isTop: boolean) => number,
+  getTransparent: (voxel: number) => boolean
 ) => {
-  const bounds = auxBox.makeEmpty();
-  const faces: number[] = [];
+  const opaque: { bounds: Box3; faces: number[]; offset: number } = {
+    bounds: auxBoxA.makeEmpty(),
+    faces: [],
+    offset: 0,
+  };
+  const transparent: { bounds: Box3; faces: number[]; offset: number } = {
+    bounds: auxBoxB.makeEmpty(),
+    faces: [],
+    offset: 0,
+  };
 
-  let offset = 0;
   for (let z = 0; z < chunkSize; z++) {
     for (let y = 0; y < chunkSize; y++) {
       for (let x = 0; x < chunkSize; x++) {
@@ -82,23 +91,29 @@ export const voxelMesher = (
           continue;
         }
         let isVisible = false;
-        const isTop = getVoxel(chunks, x, y + 1, z) === 0;
+        const isTransparent = getTransparent(voxel);
+        const mesh = isTransparent ? transparent : opaque;
+        const topVoxel = getVoxel(chunks, x, y + 1, z);
+        const topIsTransparent = getTransparent(topVoxel);
+        const isTop = topVoxel === 0 || isTransparent !== topIsTransparent;
         for (let face = 0; face < 6; face++) {
           const n = normals[face][0];
           const u = normals[face][1];
           const v = normals[face][2];
           const p = auxVectorA.set(x + n.x, y + n.y, z + n.z);
-          if (getVoxel(chunks, p.x, p.y, p.z) === 0) {
+          const neighborVoxel = getVoxel(chunks, p.x, p.y, p.z);
+          const neighborIsTransparent = getTransparent(neighborVoxel);
+          if (neighborVoxel === 0 || isTransparent !== neighborIsTransparent) {
             isVisible = true;
-            faces[offset++] = x + 0.5;
-            faces[offset++] = y + 0.5;
-            faces[offset++] = z + 0.5;
-            faces[offset++] = getTexture(voxel, face, isTop) * 6 + face;
+            mesh.faces[mesh.offset++] = x + 0.5;
+            mesh.faces[mesh.offset++] = y + 0.5;
+            mesh.faces[mesh.offset++] = z + 0.5;
+            mesh.faces[mesh.offset++] = getTexture(voxel, face, isTop) * 6 + face;
             for (let vertex = 0; vertex < 4; vertex++) {
               const vn = vertices[vertex];
               const vu = auxVectorB.set(u.x * vn.x, u.y * vn.x, u.z * vn.x);
               const vv = auxVectorC.set(v.x * vn.y, v.y * vn.y, v.z * vn.y);
-              faces[offset++] = getAO(
+              mesh.faces[mesh.offset++] = getAO(
                 getVoxel(chunks, p.x + vu.x, p.y + vu.y, p.z + vu.z) !== 0,
                 getVoxel(chunks, p.x + vv.x, p.y + vv.y, p.z + vv.z) !== 0,
                 getVoxel(chunks, p.x + vu.x + vv.x, p.y + vu.y + vv.y, p.z + vu.z + vv.z) !== 0
@@ -107,14 +122,17 @@ export const voxelMesher = (
           }
         }
         if (isVisible) {
-          bounds.expandByPoint(auxVectorA.set(x, y, z));
-          bounds.expandByPoint(auxVectorA.set(x + 1, y + 1, z + 1));
+          mesh.bounds.expandByPoint(auxVectorA.set(x, y, z));
+          mesh.bounds.expandByPoint(auxVectorA.set(x + 1, y + 1, z + 1));
         }
       }
     }
   }
 
-  return { bounds, faces: new Float32Array(faces) };
+  return {
+    opaque: { bounds: opaque.bounds, faces: new Float32Array(opaque.faces) },
+    transparent: { bounds: transparent.bounds, faces: new Float32Array(transparent.faces) },
+  };
 };
 
 export const voxelColliders = (

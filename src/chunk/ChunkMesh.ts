@@ -44,27 +44,14 @@ export class ChunkMesh extends Mesh {
         normal: face.getAttribute('normal') as BufferAttribute,
         uv: uv as BufferAttribute,
         instance: new Mesh(face),
-        rotations: Array.from({ length: 6 }, (_, i) => {
-          const rotation = new Matrix4();
-          switch (i) {
-            case 1:
-              rotation.makeRotationX(Math.PI * -0.5);
-              break;
-            case 2:
-              rotation.makeRotationX(Math.PI * 0.5);
-              break;
-            case 3:
-              rotation.makeRotationY(Math.PI * -0.5);
-              break;
-            case 4:
-              rotation.makeRotationY(Math.PI * 0.5);
-              break;
-            case 5:
-              rotation.makeRotationY(Math.PI);
-              break;
-          }
-          return rotation;
-        }),
+        rotations: [
+          new Matrix4(),
+          new Matrix4().makeRotationX(Math.PI * -0.5),
+          new Matrix4().makeRotationX(Math.PI * 0.5),
+          new Matrix4().makeRotationY(Math.PI * -0.5),
+          new Matrix4().makeRotationY(Math.PI * 0.5),
+          new Matrix4().makeRotationY(Math.PI),
+        ],
       };
     }
     return ChunkMesh.geometry;
@@ -81,8 +68,6 @@ export class ChunkMesh extends Mesh {
     geometry.setAttribute('normal', normal);
     geometry.setAttribute('uv', uv);
     super(geometry);
-    this.castShadow = true;
-    this.receiveShadow = true;
     this.visible = false;
   }
 

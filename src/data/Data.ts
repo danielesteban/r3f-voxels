@@ -31,6 +31,7 @@ export const createDataStore = (
   generator?: (x: number, y: number, z: number) => number,
   getPhysics?: () => { world: any; rapier: any },
   getTexture: (voxel: number, face: VoxelFace, isTop: boolean) => number = (v) => (v - 1),
+  getTransparent: (voxel: number) => boolean = () => false
 ) => {
   const chunks = new Map<string, Signal<ChunkData>>();
   const getChunk = (x: Vector3 | number, y?: number, z?: number) => {
@@ -128,6 +129,7 @@ export const createDataStore = (
     },
     getPhysics,
     getTexture,
+    getTransparent,
     getVoxel: (position: Vector3) => {
       const voxelChunk = auxA.copy(position).divideScalar(chunkSize).floor();
       const voxel = auxB.copy(position).sub(auxC.copy(voxelChunk).multiplyScalar(chunkSize));

@@ -5,6 +5,7 @@ import { VoxelFace } from 'r3f-voxels';
 export enum Voxel {
   air,
   dirt,
+  glass,
   noise,
   digital,
 }
@@ -13,6 +14,7 @@ enum Texture {
   dirt,
   grassTop,
   grassSide,
+  glass,
   noise,
   digital,
 }
@@ -22,7 +24,7 @@ export const atlas = (() => {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
   canvas.width = 32;
-  canvas.height = canvas.width * 5;
+  canvas.height = canvas.width * 6;
 
   // Texture.dirt
   ctx.fillStyle = '#fff';
@@ -58,6 +60,19 @@ export const atlas = (() => {
     for (let x = 0; x < 32; x++) {
       if (prng() > 0.5) {
         ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+
+  // Texture.glass
+  ctx.translate(0, 32);
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = '#bbb';
+  ctx.strokeRect(1, 1, 30, 30);
+  for (let y = 3; y < 30; y+=4) {
+    for (let x = 3; x < 30; x+=4) {
+      if (prng() > 0.7) {
+        ctx.fillRect(x, y, 2, 2);
       }
     }
   }
@@ -101,11 +116,13 @@ export const ORMAtlas = (() => {
     255, 127, 0, 255,
     // Texture.grassSide
     255, 127, 0, 255,
+    // Texture.glass
+    255, 127, 0, 255,
     // Texture.noise
     255, 127, 0, 255,
     // Texture.digital
     255, 0, 127, 255,
-  ]), 1, 1, 5);
+  ]), 1, 1, 6);
   atlas.needsUpdate = true;
   return atlas;
 })();
@@ -120,10 +137,21 @@ export const getTexture = (voxel: Voxel, face: VoxelFace, isTop: boolean) => {
         return Texture.grassSide;
       }
       return Texture.dirt;
+    case Voxel.glass:
+      return Texture.glass;
     case Voxel.noise:
       return Texture.noise;
     case Voxel.digital:
       return Texture.digital;
   }
   throw new Error('Unknown voxel');
+};
+
+export const getTransparent = (voxel: Voxel) => {
+  switch (voxel) {
+    default:
+      return false;
+    case Voxel.glass:
+      return true;
+  }
 };

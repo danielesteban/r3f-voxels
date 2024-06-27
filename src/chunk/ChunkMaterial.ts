@@ -1,11 +1,10 @@
 import {
   DataArrayTexture,
+  DoubleSide,
   MeshDepthMaterial,
   MeshStandardMaterial,
   RGBADepthPacking,
   ShaderChunk,
-  SRGBColorSpace,
-  Texture,
   WebGLProgramParametersWithUniforms,
   WebGLRenderer,
 } from 'three';
@@ -69,11 +68,17 @@ export class ChunkMaterial extends MeshStandardMaterial {
   private readonly normalAtlas: { value: DataArrayTexture | null };
   private readonly ORMAtlas: { value: DataArrayTexture | null };
 
-  constructor() {
+  constructor(transparent: boolean) {
     super();
     this.atlas = { value: null };
     this.normalAtlas = { value: null };
     this.ORMAtlas = { value: null };
+    if (transparent) {
+      this.polygonOffset = true;
+      this.polygonOffsetFactor = -1;
+      this.side = DoubleSide;
+      this.transparent = transparent;
+    }
   }
 
   override customProgramCacheKey() {
@@ -246,63 +251,32 @@ export class ChunkMaterial extends MeshStandardMaterial {
       );
   }
 
-  private static getAtlasTexture(atlas: Texture) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error();
-    }
-    canvas.width = atlas.image.width;
-    canvas.height = atlas.image.height;
-    ctx.drawImage(atlas.image, 0, 0);
-    const texture = new DataArrayTexture(
-      ctx.getImageData(0, 0, canvas.width, canvas.height).data,
-      canvas.width,
-      canvas.width,
-      canvas.height / canvas.width
-    );
-    texture.anisotropy = atlas.anisotropy;
-    texture.minFilter = atlas.minFilter;
-    texture.magFilter = atlas.magFilter;
-    texture.needsUpdate = true;
-    return texture;
-  }
-
-  setAtlas(atlas?: DataArrayTexture | Texture) {
+  setAtlas(atlas: DataArrayTexture | null) {
     const { defines } = this;
-    if (atlas && !(atlas instanceof DataArrayTexture)) {
-      atlas = ChunkMaterial.getAtlasTexture(atlas);
-      atlas.colorSpace = SRGBColorSpace;
-    }
     if (defines.USE_ATLAS !== !!atlas) {
       defines.USE_ATLAS = !!atlas;
       this.needsUpdate = true;
     }
-    this.atlas.value = (atlas || null) as DataArrayTexture;
+    this.atlas.value = atlas;
   }
 
-  setNormalAtlas(atlas?: DataArrayTexture | Texture) {
+  setNormalAtlas(atlas: DataArrayTexture | null) {
     const { defines } = this;
-    if (atlas && !(atlas instanceof DataArrayTexture)) {
-      atlas = ChunkMaterial.getAtlasTexture(atlas);
-    }
     if (defines.USE_NORMAL_ATLAS !== !!atlas) {
       defines.USE_NORMAL_ATLAS = !!atlas;
       this.needsUpdate = true;
     }
-    this.normalAtlas.value = (atlas || null) as DataArrayTexture;
+    this.normalAtlas.value = atlas;
   }
 
-  setOcclusionRoughnessMetalnessAtlas(atlas?: DataArrayTexture | Texture) {
+  setOcclusionRoughnessMetalnessAtlas(atlas: DataArrayTexture | null) {
     const { defines } = this;
-    if (atlas && !(atlas instanceof DataArrayTexture)) {
-      atlas = ChunkMaterial.getAtlasTexture(atlas);
-    }
     if (defines.USE_ORM_ATLAS !== !!atlas) {
       defines.USE_ORM_ATLAS = !!atlas;
       this.needsUpdate = true;
     }
-    this.ORMAtlas.value = (atlas || null) as DataArrayTexture;
+    this.ORMAtlas.value = atlas;
+    this.metalness = !!atlas ? 1 : 0;
   }
 }
 

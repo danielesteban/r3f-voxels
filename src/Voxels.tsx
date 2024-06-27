@@ -2,20 +2,22 @@ import React from 'react';
 import { GroupProps, useFrame } from '@react-three/fiber';
 import { Box3, DataArrayTexture, Texture, Vector3 } from 'three';
 import { Chunk } from './chunk/Chunk';
-import { ChunkMaterial, ChunkDepthMaterial } from './chunk/ChunkMaterial';
+import { ChunkMaterial } from './chunk/ChunkMaterial';
+import { useMaterials } from './chunk/useMaterials';
 import { DataProvider } from './data/DataProvider';
 import { chunkSize, useData, VoxelFace } from './data/Data';
 
 type useDataType = ReturnType<typeof useData>;
 
 export type VoxelsApi = {
-  addEventListener: useDataType['addEventListener'],
-  removeEventListener: useDataType['removeEventListener'],
-  exportChunks: useDataType['exportChunks'],
-  importChunks: useDataType['importChunks'],
-  getMaterial: () => ChunkMaterial,
-  getVoxel: useDataType['getVoxel'],
-  setVoxel: useDataType['setVoxel'],
+  addEventListener: useDataType['addEventListener'];
+  removeEventListener: useDataType['removeEventListener'];
+  clearChunks: useDataType['clearChunks'];
+  exportChunks: useDataType['exportChunks'];
+  importChunks: useDataType['importChunks'];
+  getMaterials: () => { opaque: ChunkMaterial; transparent: ChunkMaterial };
+  getVoxel: useDataType['getVoxel'];
+  setVoxel: useDataType['setVoxel'];
 };
 
 type ChunksProps = {
@@ -32,6 +34,7 @@ type VoxelsProps = {
   generator?: (x: number, y: number, z: number) => number;
   getPhysics?: () => { world: any; rapier: any };
   getTexture?: (voxel: number, face: VoxelFace, isTop: boolean) => number;
+  getTransparent?: (voxel: number) => boolean;
 } & ChunksProps;
 
 const VoxelsContext = React.createContext<VoxelsApi | null>(null);
@@ -45,32 +48,10 @@ const Chunks = React.memo(React.forwardRef<VoxelsApi, ChunksProps>(({
   occlusionRoughnessMetalnessAtlas,
   bounds = new Box3(new Vector3(-5, 0, -5), new Vector3(5, 2, 5)),
   followCamera = false,
-  metalness = occlusionRoughnessMetalnessAtlas ? 1 : 0,
-  roughness = 1,
   ...props
 }, ref) => {
-  const { loaded, addEventListener, removeEventListener, exportChunks, importChunks, loadChunks, getVoxel, setVoxel } = useData();
-  const material = React.useRef<ChunkMaterial>(null!);
-  if (!material.current) {
-    material.current = new ChunkMaterial();
-  }
-  React.useLayoutEffect(() => (
-    material.current.setAtlas(atlas)
-  ), [atlas]);
-  React.useLayoutEffect(() => (
-    material.current.setNormalAtlas(normalAtlas)
-  ), [normalAtlas]);
-  React.useLayoutEffect(() => (
-    material.current.setOcclusionRoughnessMetalnessAtlas(occlusionRoughnessMetalnessAtlas)
-  ), [occlusionRoughnessMetalnessAtlas]);
-  React.useLayoutEffect(() => {
-    material.current.metalness = metalness;
-    material.current.roughness = roughness;
-  }, [metalness, roughness]);
-  const depthMaterial = React.useRef<ChunkDepthMaterial>(null!);
-  if (!depthMaterial.current) {
-    depthMaterial.current = new ChunkDepthMaterial();
-  }
+  const { loaded, addEventListener, removeEventListener, clearChunks, exportChunks, importChunks, loadChunks, getVoxel, setVoxel } = useData();
+  const { depthMaterial, opaqueMaterial, transparentMaterial } = useMaterials(atlas, normalAtlas, occlusionRoughnessMetalnessAtlas);
   const { chunks, origin } = loaded.use();
   useFrame(({ camera }) => {
     if (followCamera) {
@@ -85,9 +66,13 @@ const Chunks = React.memo(React.forwardRef<VoxelsApi, ChunksProps>(({
   const api = React.useMemo<VoxelsApi>(() => ({
     addEventListener,
     removeEventListener,
+    clearChunks,
     exportChunks,
     importChunks,
-    getMaterial: () => material.current,
+    getMaterials: () => ({
+      opaque: opaqueMaterial.current,
+      transparent: transparentMaterial.current,
+    }),
     getVoxel,
     setVoxel,
   }), []);
@@ -99,8 +84,9 @@ const Chunks = React.memo(React.forwardRef<VoxelsApi, ChunksProps>(({
           <Chunk
             key={key}
             chunkKey={key}
-            material={material.current}
             depthMaterial={depthMaterial.current}
+            opaqueMaterial={opaqueMaterial.current}
+            transparentMaterial={transparentMaterial.current}
           />
         ))}
       </group>
@@ -116,9 +102,10 @@ export const Voxels = React.memo(React.forwardRef<VoxelsApi, VoxelsProps>(({
   generator,
   getPhysics,
   getTexture,
+  getTransparent,
   ...props
 }, ref) => (
-  <DataProvider generator={generator} getPhysics={getPhysics} getTexture={getTexture}>
+  <DataProvider generator={generator} getPhysics={getPhysics} getTexture={getTexture} getTransparent={getTransparent}>
     <Chunks {...props} ref={ref}>
       {children}
     </Chunks>

@@ -7,12 +7,13 @@ import { ChunkMesh } from './ChunkMesh';
 
 interface ChunkProps {
   chunkKey: string;
-  material: Material;
   depthMaterial: Material;
+  opaqueMaterial: Material;
+  transparentMaterial: Material;
 }
 
-export const Chunk = React.memo(({ chunkKey, material, depthMaterial }: ChunkProps) => {
-  const { getChunk, getPhysics, getTexture } = useData();
+export const Chunk = React.memo(({ chunkKey, depthMaterial, opaqueMaterial, transparentMaterial }: ChunkProps) => {
+  const { getChunk, getPhysics, getTexture, getTransparent } = useData();
   const chunkPosition = React.useMemo(() => new Vector3().fromArray(chunkKey.split(':').map((p) => parseInt(p, 10))), [chunkKey]);
   const data: ChunkData[] = [];
   for (let z = -1; z <= 1; z++) {
@@ -23,10 +24,13 @@ export const Chunk = React.memo(({ chunkKey, material, depthMaterial }: ChunkPro
     }
   }
   const chunk = data[13];
-  const mesh = React.useRef<ChunkMesh>(null!);
-  React.useLayoutEffect(() => (
-    mesh.current.update(voxelMesher(data, getTexture))
-  ), data);
+  const opaqueMesh = React.useRef<ChunkMesh>(null!);
+  const transparentMesh = React.useRef<ChunkMesh>(null!);
+  React.useLayoutEffect(() => {
+    const { opaque, transparent } = voxelMesher(data, getTexture, getTransparent);
+    opaqueMesh.current.update(opaque);
+    transparentMesh.current.update(transparent);
+  }, data);
 
   if (getPhysics) {
     // @experimental
@@ -67,12 +71,23 @@ export const Chunk = React.memo(({ chunkKey, material, depthMaterial }: ChunkPro
   }
 
   return (
-    <chunkMesh
-      material={material}
-      customDepthMaterial={depthMaterial}
-      position={chunk.position}
-      ref={mesh}
-    />
+    <>
+      <chunkMesh
+        customDepthMaterial={depthMaterial}
+        material={opaqueMaterial}
+        position={chunk.position}
+        castShadow
+        receiveShadow
+        ref={opaqueMesh}
+      />
+      <chunkMesh
+        customDepthMaterial={depthMaterial}
+        material={transparentMaterial}
+        position={chunk.position}
+        receiveShadow
+        ref={transparentMesh}
+      />
+    </>
   );
 });
 

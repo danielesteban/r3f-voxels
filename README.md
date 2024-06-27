@@ -44,7 +44,7 @@ type VoxelsApi = {
   clearChunks: () => void;
   exportChunks: () => { [key: string]: Uint8Array };
   importChunks: (chunks: { [key: string]: Uint8Array }) => void;
-  getMaterial: () => ChunkMaterial;
+  getMaterials: () => { opaque: ChunkMaterial; transparent: ChunkMaterial };
   getVoxel: (position: Vector3) => number;
   setVoxel: (position: Vector3, value: number) => void;
 };
@@ -62,6 +62,7 @@ type VoxelsProps = {
   generator?: (x: number, y: number, z: number) => number;
   getPhysics?: () => RapierContext;
   getTexture?: (voxel: number, face: VoxelFace, isTop: boolean) => number;
+  getTransparent?: (voxel: number) => boolean;
   metalness?: number;
   roughness?: number;
 };

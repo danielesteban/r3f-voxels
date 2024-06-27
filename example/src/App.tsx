@@ -9,10 +9,10 @@ import { Mesh } from 'three';
 import tunnel from 'tunnel-rat';
 import { useDrag } from '@use-gesture/react';
 import { chunkSize, Voxels, VoxelsApi } from 'r3f-voxels';
-import { atlas, ORMAtlas, getTexture, Voxel } from './atlas';
-import { useCSM } from './csm';
+import { atlas, ORMAtlas, getTexture, getTransparent, Voxel } from './atlas';
+import { CSM, useCSM } from './CSM';
 import { terrain } from './generator';
-import { Spheres, SpheresApi } from './spheres';
+import { Spheres, SpheresApi } from './Spheres';
 
 const ui = tunnel();
 
@@ -39,7 +39,7 @@ const Scene = () => {
   useLayoutEffect(() => {
     const keydown = (e: KeyboardEvent) => {
       const brush = e.keyCode - 48;
-      if (brush > 0 && brush <= 3) {
+      if (brush > 0 && brush <= 4) {
         setBrush(brush);
       }
       if (e.key === ' ') {
@@ -50,7 +50,15 @@ const Scene = () => {
     return () => document.body.removeEventListener('keydown', keydown);
   }, []);
 
-  useCSM(() => voxels.current.getMaterial());
+  const csm = useCSM();
+  useLayoutEffect(() => {
+    const { opaque, transparent } = voxels.current.getMaterials();
+    const materialsCSM = [
+      csm.setupMaterial(opaque),
+      csm.setupMaterial(transparent),
+    ];
+    return () => materialsCSM.forEach((dispose) => dispose());
+  }, []);
 
   const grid = useRef<Mesh>(null!);
   useFrame(({ camera }) => (
@@ -95,6 +103,7 @@ const Scene = () => {
           generator={terrain}
           getPhysics={useRapier}
           getTexture={getTexture}
+          getTransparent={getTransparent}
           followCamera
           ref={voxels}
         />
@@ -110,11 +119,14 @@ const Scene = () => {
           <Brush $active={brush === Voxel.dirt} onClick={() => setBrush(Voxel.dirt)}>
             1
           </Brush>
-          <Brush $active={brush === Voxel.noise} onClick={() => setBrush(Voxel.noise)}>
+          <Brush $active={brush === Voxel.glass} onClick={() => setBrush(Voxel.glass)}>
             2
           </Brush>
-          <Brush $active={brush === Voxel.digital} onClick={() => setBrush(Voxel.digital)}>
+          <Brush $active={brush === Voxel.noise} onClick={() => setBrush(Voxel.noise)}>
             3
+          </Brush>
+          <Brush $active={brush === Voxel.digital} onClick={() => setBrush(Voxel.digital)}>
+            4
           </Brush>
         </Brushes>
         <UI>
@@ -135,7 +147,9 @@ export const App = () => (
     <Canvas camera={{ position: [0, 8, 24] }} shadows>
       <Suspense>
         <Physics colliders={false}>
-          <Scene />
+          <CSM>
+            <Scene />
+          </CSM>
         </Physics>
       </Suspense>
       <Environment background backgroundBlurriness={0.5} blur={0.5} environmentIntensity={0.5} preset="sunset" />
@@ -144,6 +158,14 @@ export const App = () => (
     <ui.Out />
   </>
 );
+
+const UI = styled.div`
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  gap: 0.5rem;
+`;
 
 const Brushes = styled.div`
   position: absolute;
@@ -163,12 +185,4 @@ const Brush = styled.button<{ $active: boolean }>`
   background-color: ${({ $active }) => $active ? '#333' : 'rgba(0, 0, 0, .2)'};
   color: #fff;
   cursor: ${({ $active }) => $active ? 'default' : 'pointer'};
-`;
-
-const UI = styled.div`
-  position: absolute;
-  bottom: 1rem;
-  left: 1rem;
-  display: flex;
-  gap: 0.5rem;
 `;
